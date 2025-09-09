@@ -11,6 +11,7 @@ public class Piece {
         RED, BLACK
     }
     private final Type type;
+    private boolean king;
 
     /**
      * The position of the piece on the board, where (0,0) is the top left corner
@@ -19,22 +20,55 @@ public class Piece {
      */
     private int x, y;
     private final Ellipse ellipse;
+    private final Ellipse ellipse2;
 
     public Piece(Type type, int x, int y) {
+        this(type, x, y, false);
+    }
+
+    public Piece(Type type, int x, int y, boolean king) {
         this.type = type;
         this.x = x;
         this.y = y;
+        this.king = king;
+        ellipse2 = createCrown();
+        ellipse2.setVisible(king);
         ellipse = createEllipse();
         setActive(false);
         reposition();
         BoardController.getSquare(x,y).placePiece(this);
     }
 
+    public void setKing() {
+        this.king = true;
+        ellipse2.setVisible(true);
+    }
+
     private Ellipse createEllipse() {
         final Ellipse ellipse;
+        ellipse = new Ellipse(x, y);
+        ellipse.setRadiusX(25.0f);
+        ellipse.setRadiusY(12.0f);
+        ellipse.setStroke(Color.WHITE);
+        if(this.type == Type.RED) {
+            ellipse.setFill(Color.RED);
+        } else if(this.type == Type.BLACK) {
+            ellipse.setFill(Color.BLACK);
+        } else {
+            throw new IllegalArgumentException("Unknown type:"+type);
+        }
+        ellipse.setOnMouseClicked(event -> trySetActive());
+        BoardController.addChild(ellipse);
+        return ellipse;
+    }
+
+    private Ellipse createCrown() {
+        final Ellipse ellipse;
+        final int crownHeight = 10;
         ellipse = new Ellipse();
         ellipse.setRadiusX(25.0f);
         ellipse.setRadiusY(12.0f);
+        ellipse.setCenterY(y+crownHeight);
         ellipse.setStroke(Color.WHITE);
         if(this.type == Type.RED) {
             ellipse.setFill(Color.RED);
@@ -59,6 +93,9 @@ public class Piece {
     private void reposition() {
         ellipse.setLayoutX(x* BoardController.SQUARE_SIZE + BoardController.SQUARE_SIZE/2);
         ellipse.setLayoutY(y* BoardController.SQUARE_SIZE + BoardController.SQUARE_SIZE/2);
+        ellipse2.setLayoutX(x* BoardController.SQUARE_SIZE + BoardController.SQUARE_SIZE/2);
+        ellipse2.setLayoutY(y* BoardController.SQUARE_SIZE + BoardController.SQUARE_SIZE/2);
+
     }
 
     private void trySetActive() {
@@ -68,8 +105,10 @@ public class Piece {
     public void setActive(boolean isActive) {
         if(isActive) {
             ellipse.setStrokeWidth(3);
+            ellipse2.setStrokeWidth(3);
         } else {
             ellipse.setStrokeWidth(1);
+            ellipse2.setStrokeWidth(1);
         }
     }
 
@@ -106,20 +145,21 @@ public class Piece {
      * @param square the position to which this piece will be moved.
      */
     private void move(Square square) {
-        BoardController.getSquare(x,y).removePiece();
+        BoardController.getSquare(x, y).removePiece();
         placeOnSquare(square);
         BoardController.switchTurns();
         setActive(false);
 
-        if(type.equals(Type.BLACK) && y == 0) {
-            BoardController.setMessage("Kings are not yet implemented. Sorry!");
+        if(type.equals(Type.BLACK) && y == 0 || type.equals(Type.RED) && y == 2*2+1) {
+            setKing();
         }
+
     }
 
     private void placeOnSquare(Square square) {
         this.x = square.getX();
         this.y = square.getY();
-        BoardController.getSquare(x,y).placePiece(this);
+        BoardController.getSquare(x, y).placePiece(this);
         reposition();
     }
 
@@ -146,8 +186,9 @@ public class Piece {
      * Removes this piece from the board.
      */
     public void removeSelf() {
-        BoardController.getSquare(x,y).removePiece();
+        BoardController.getSquare(x, y).removePiece();
         BoardController.removeChild(ellipse);
+        BoardController.removeChild(ellipse2);
     }
 
     /**
@@ -157,9 +198,15 @@ public class Piece {
      */
     public boolean isValidOrdinaryMove(Square square) {
         if(type.equals(Type.BLACK)) {
+            if (this.king) {
+                return Math.abs(square.getY()-y) == 1 &&  Math.abs(square.getX()-x) == 1;
+            }
             return (square.getY() == y - 1 &&
                     Math.abs(square.getX()-x) == 1);
         } else if(type.equals(Type.RED)){
+            if (this.king) {
+                return Math.abs(square.getY() - y) == 1 && Math.abs(square.getX() - x) == 1;
+            }
             return (square.getY() == y + 1 &&
                     Math.abs(square.getX()-x) == 1);
         } else {
@@ -173,7 +220,7 @@ public class Piece {
      *    piece at the same time.
      */
     private boolean isValidCapture(Square square) {
-        return getCapturedPiece(square) != null;
+        return getCapturedPiece(square) != null && getCapturedPiece(square).type != this.type;
     }
 
     /**
@@ -187,7 +234,14 @@ public class Piece {
      *      Otherwise, return the piece that would be removed by moving to that square.
      */
     public Piece getCapturedPiece(Square square) {
-        if(type.equals(Type.BLACK)) {
+        if (king) {
+            if (!((Math.abs(square.getY() - y) == 2 &&
+                    Math.abs(square.getX() - x) == 2))) {
+                return null;
+            } else {
+                return getMiddlePiece(square);
+            }
+        } else if(type.equals(Type.BLACK)) {
             if (!((square.getY() == y - 2 &&
                     Math.abs(square.getX()-x) == 2))) {
                 return null;
