@@ -28,6 +28,8 @@ public class BoardController {
     private Piece.Type whoseTurn = Piece.Type.BLACK;
     private final List<Square> squares = new ArrayList<>();
     private Piece activePiece = null;
+    private final RedBehavior redBehavior =  new RedBehavior();
+    private final BlackBehavior blackBehavior =   new BlackBehavior();
 
     @FXML
     public void initialize() {
@@ -38,18 +40,17 @@ public class BoardController {
         theController = this;
 
         createSquares();
-
         for(int i = 0; i < BOARD_WIDTH; i+=2) {
-            createPiece(Piece.Type.RED,i,0);
+            createPiece(Piece.Type.RED,i,0, false, redBehavior);
         }
         for(int i = 1; i < BOARD_WIDTH; i+=2) {
-            createPiece(Piece.Type.BLACK,i,BOARD_WIDTH-1);
+            createPiece(Piece.Type.BLACK,i, BOARD_WIDTH-1, false, blackBehavior);
         }
         theBoard.setFocusTraversable(true); // ensure garden pane will receive keypresses
     }
 
-    private void createPiece(Piece.Type type, int x, int y) {
-        Piece piece = new Piece(type, x, y);
+    protected static void createPiece(Piece.Type type, int x, int y, Boolean king, MoveBehavior moveBehavior) {
+        Piece piece = new Piece(type, x, y, king, moveBehavior);
     }
 
     private void createSquares() {
